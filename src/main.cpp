@@ -20,6 +20,11 @@ void loop() {
         Serial.print(list[1]);
         Serial.print(list[2]);
         Serial.println(list[3]);
+        char _list[] = {0,0,0,0};
+        for (int i = 0; i < 4; ++i) {
+            _list[i] = list[i];
+        }
+        Serial2.write(_list,4);
     }
     delay(10);
 }
