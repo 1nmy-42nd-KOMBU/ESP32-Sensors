@@ -2,61 +2,22 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
-
-/* This driver uses the Adafruit unified sensor library (Adafruit_Sensor),
-   which provides a common 'type' for sensor data and some helper functions.
-
-   To use this driver you will also need to download the Adafruit_Sensor
-   library and include it in your libraries folder.
-
-   You should also assign a unique ID to this sensor for use with
-   the Adafruit Sensor API so that you can identify this particular
-   sensor in any data logs, etc.  To assign a unique ID, simply
-   provide an appropriate value in the constructor below (12345
-   is used by default in this example).
-
-   Connections
-   ===========
-   Connect SCL to analog 5
-   Connect SDA to analog 4
-   Connect VDD to 3.3-5V DC
-   Connect GROUND to common ground
-
-   History
-   =======
-   2015/MAR/03  - First release (KTOWN)
-*/
+#include "HardwareSerial.h"
+// this sample code provided by www.programmingboss.com
+#define RXp2 16
+#define TXp2 17
 
 /* Set the delay between fresh samples */
 #define BNO055_SAMPLERATE_DELAY_MS (100)
 #define Wire1_SDA (33)
 #define Wire1_SCL (32)
+TaskHandle_t thp[1];
+
+int led = 23;
 
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire1);
-
-/**************************************************************************/
-/*
-    Displays some basic information on this sensor from the unified
-    sensor API sensor_t type (see Adafruit_Sensor for more information)
-*/
-/**************************************************************************/
-void displaySensorDetails(void)
-{
-  sensor_t sensor;
-  bno.getSensor(&sensor);
-  Serial.println("------------------------------------");
-  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" xxx");
-  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" xxx");
-  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" xxx");
-  Serial.println("------------------------------------");
-  Serial.println("");
-  delay(500);
-}
 
 /**************************************************************************/
 /*
@@ -67,7 +28,9 @@ void setup(void)
 {
   Wire1.begin(Wire1_SDA, Wire1_SCL);
   Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
   Serial.println("Orientation Sensor Test"); Serial.println("");
+  pinMode(led, OUTPUT);
 
   /* Initialise the sensor */
   if(!bno.begin())
@@ -76,14 +39,12 @@ void setup(void)
     Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
     while(1);
   }
-   
+
   delay(1000);
 
   /* Use external crystal for better accuracy */
   bno.setExtCrystalUse(true);
-   
-  /* Display some basic information on this sensor */
-  displaySensorDetails();
+  xTaskCreatePinnedToCore(Core0a, "Core0a", 4096, NULL, 3, &thp[0], 0); 
 }
 
 /**************************************************************************/
@@ -94,41 +55,39 @@ void setup(void)
 /**************************************************************************/
 void loop(void)
 {
-  /* Get a new sensor event */
-  sensors_event_t event;
-  bno.getEvent(&event);
+  digitalWrite(led, HIGH);
+  delay(500);
+  digitalWrite(led, LOW);
+  delay(500);
+}
 
-  /* Board layout:
-         +----------+
-         |         *| RST   PITCH  ROLL  HEADING
-     ADR |*        *| SCL
-     INT |*        *| SDA     ^            /->
-     PS1 |*        *| GND     |            |
-     PS0 |*        *| 3VO     Y    Z-->    \-X
-         |         *| VIN
-         +----------+
-  */
+void Core0a(void *args) {//サブCPU(Core0)で実行するプログラム
+  while (1) {//ここで無限ループを作っておく
+    /* Get a new sensor event */
+    sensors_event_t event;
+    bno.getEvent(&event);
 
-  /* The processing sketch expects data as roll, pitch, heading */
-  Serial.print(F("Orientation: "));
-  Serial.print((float)event.orientation.x);
-  Serial.print(F(" "));
-  Serial.print((float)event.orientation.y);
-  Serial.print(F(" "));
-  Serial.print((float)event.orientation.z);
-  Serial.println(F(""));
+    /* The processing sketch expects data as roll, pitch, heading */
+    Serial.print(F("Orientation: "));
+    Serial.print((float)event.orientation.x);
+    Serial.print(F(" "));
+    Serial.print((float)event.orientation.y);
+    Serial.print(F(" "));
+    Serial.print((float)event.orientation.z);
+    Serial.println(F(""));
 
-  /* Also send calibration data for each sensor. */
-  uint8_t sys, gyro, accel, mag = 0;
-  bno.getCalibration(&sys, &gyro, &accel, &mag);
-  Serial.print(F("Calibration: "));
-  Serial.print(sys, DEC);
-  Serial.print(F(" "));
-  Serial.print(gyro, DEC);
-  Serial.print(F(" "));
-  Serial.print(accel, DEC);
-  Serial.print(F(" "));
-  Serial.println(mag, DEC);
+    // /* Also send calibration data for each sensor. */
+    // uint8_t sys, gyro, accel, mag = 0;
+    // bno.getCalibration(&sys, &gyro, &accel, &mag);
+    // Serial.print(F("Calibration: "));
+    // Serial.print(sys, DEC);
+    // Serial.print(F(" "));
+    // Serial.print(gyro, DEC);
+    // Serial.print(F(" "));
+    // Serial.print(accel, DEC);
+    // Serial.print(F(" "));
+    // Serial.println(mag, DEC);
 
-  delay(BNO055_SAMPLERATE_DELAY_MS);
+    delay(BNO055_SAMPLERATE_DELAY_MS);
+  }
 }
