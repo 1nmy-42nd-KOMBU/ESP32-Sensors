@@ -128,7 +128,7 @@ void Core0GyS(void *args) {//サブCPU(Core0)で実行するプログラム
   }
 }
 
-// ultrasonic-left--------------------------------------------------------------------------
+// ultrasonic-Left--------------------------------------------------------------------------
 void Core1USL(void *args) {// Core1で実行するプログラム
   const int pingPin = 18;
   unsigned long duration;
@@ -158,6 +158,41 @@ void Core1USL(void *args) {// Core1で実行するプログラム
 
     if (canUpdate){
       ultrasonic_left_cm = cm;
+    }
+    delay(25);
+  }
+}
+
+// ultrasonic-Right--------------------------------------------------------------------------
+void Core1USR(void *args) {// Core1で実行するプログラム
+  const int pingPin = 5;
+  unsigned long duration;
+  int cm;
+  while (1) {//ここで無限ループを作っておく
+    //ピンをOUTPUTに設定（パルス送信のため）
+    pinMode(pingPin, OUTPUT);
+    //LOWパルスを送信
+    digitalWrite(pingPin, LOW);
+    delayMicroseconds(2);  
+    //HIGHパルスを送信
+    digitalWrite(pingPin, HIGH);  
+    //5uSパルスを送信してPingSensorを起動
+    delayMicroseconds(5); 
+    digitalWrite(pingPin, LOW); 
+    
+    //入力パルスを読み取るためにデジタルピンをINPUTに変更（シグナルピンを入力に切り替え）
+    pinMode(pingPin, INPUT);   
+    
+    //入力パルスの長さを測定
+    duration = pulseIn(pingPin, HIGH);  
+  
+    //パルスの長さを半分に分割
+    duration=duration/2;  
+    //cmに変換
+    cm = int(duration/29); 
+
+    if (canUpdate){
+      ultrasonic_right_cm = cm;
     }
     delay(25);
   }
