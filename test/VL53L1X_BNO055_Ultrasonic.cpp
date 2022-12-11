@@ -5,22 +5,30 @@
 #include <VL53L1X.h>
 
 VL53L1X sensor;
-#define BNO055_SAMPLERATE_DELAY_MS (100)
+#define BNO055_SAMPLERATE_DELAY_MS (10)
 #define Wire1_SDA (33)
 #define Wire1_SCL (32)
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire1);
-TaskHandle_t thp[2];
+TaskHandle_t thp[3];
 
-const int pingPin = 18;
-unsigned long duration;
-int cm;
+// data of each thread------------
+// loop(tof)
+int tof_cm;
+// Core0GyS(Gyro)
+int Gyro_degree[3];
+// Core1USL(ultrasonic-left)
+int ultrasonic_left_cm;
+// Core0USR(ultraconic-right)
+int ultrasonic_right_cm;
+
+bool canUpdate = true;
 
 void setup()
 {
   Serial.begin(115200);
   Wire1.begin(Wire1_SDA, Wire1_SCL);
   Wire.begin();
-  Wire.setClock(100000); // use 400 kHz I2C
+  Wire.setClock(100000); // use 100 kHz I2C
 
   pinMode(pingPin, OUTPUT);
 
@@ -30,7 +38,7 @@ void setup()
     Serial.println("Failed to detect and initialize sensor!");
     while (1);
   }
-  sensor.setDistanceMode(VL53L1X::Long);
+  sensor.setDistanceMode(VL53L1X::Long); // long-mode
   sensor.setMeasurementTimingBudget(50000);
   sensor.startContinuous(10);
 
@@ -46,22 +54,40 @@ void setup()
   /* Use external crystal for better accuracy */
   bno.setExtCrystalUse(true);
   xTaskCreatePinnedToCore(Core0GyS, "CoreGyS", 4096, NULL, 3, &thp[0], 0); 
-  xTaskCreatePinnedToCore(Core0US, "Core0US", 4096, NULL, 3, &thp[1], 1); 
+  xTaskCreatePinnedToCore(Core1USL, "Core1USL", 4096, NULL, 3, &thp[1], 1);
+  xTaskCreatePinnedToCore(Core1tof, "Core1tof", 4096, NULL, 3, &thp[2], 1);
 }
 
+// main-loop------------------------------------------------------------------------------
 void loop()
 {
-  Serial.print(sensor.read());
-  if (sensor.timeoutOccurred()) { 
-    Serial.print(" TIMEOUT");
-    vlxReset(19);
-   }
-
-  Serial.println();
+  delay(100);
+  canUpdate = false;
+  delayMicroseconds(10);
+  Serial.println(tof_cm);
+  for (int i = 0; i < 3; ++i) {
+    Serial.println(Gyro_degree[i]);
+  }
+  Serial.println(ultrasonic_left_cm);
+  canUpdate = true;
 }
 
-void vlxReset(uint8_t resetPin) {
+// tof------------------------------------------------------------------------------------
+void Core1tof(void *args) {//Core1で実行するプログラム
+  while (1) {//ここで無限ループを作っておく
+    int tof_cm_tmp =sensor.read();
+    if (sensor.timeoutOccurred()) { // タイムアウトの監視 
+      Serial.print(" TIMEOUT");
+      vlxReset(19);
+    }
+    if (canUpdate){
+      tof_cm = tof_cm_tmp;
+    }
+  }
+}
 
+// restart tof - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void vlxReset(uint8_t resetPin) {
   Serial.println("Resetting Sensor");
  /* Stop the Sensor reading and even stop the i2c Transmission */
   sensor.stopContinuous();
@@ -73,7 +99,6 @@ void vlxReset(uint8_t resetPin) {
   digitalWrite(resetPin, HIGH);
   vTaskDelay(600 / portTICK_PERIOD_MS);
 
-
   if (!sensor.init()) {
     ESP_LOGE(TAG, "Failed To Detect Sensor.. Restarting!!");
     ESP.restart();
@@ -83,6 +108,7 @@ void vlxReset(uint8_t resetPin) {
   sensor.startContinuous(10);
 }
 
+// Gyro-------------------------------------------------------------------------------------
 void Core0GyS(void *args) {//サブCPU(Core0)で実行するプログラム
   while (1) {//ここで無限ループを作っておく
     /* Get a new sensor event */
@@ -90,31 +116,23 @@ void Core0GyS(void *args) {//サブCPU(Core0)で実行するプログラム
     bno.getEvent(&event);
 
     /* The processing sketch expects data as roll, pitch, heading */
-    Serial.print(F("Orientation: "));
-    Serial.print((float)event.orientation.x);
-    Serial.print(F(" "));
-    Serial.print((float)event.orientation.y);
-    Serial.print(F(" "));
-    Serial.print((float)event.orientation.z);
-    Serial.println(F(""));
+    int xyz_degree[] = {(int)event.orientation.x,(int)event.orientation.y,(int)event.orientation.z};
 
-    // /* Also send calibration data for each sensor. */
-    // uint8_t sys, gyro, accel, mag = 0;
-    // bno.getCalibration(&sys, &gyro, &accel, &mag);
-    // Serial.print(F("Calibration: "));
-    // Serial.print(sys, DEC);
-    // Serial.print(F(" "));
-    // Serial.print(gyro, DEC);
-    // Serial.print(F(" "));
-    // Serial.print(accel, DEC);
-    // Serial.print(F(" "));
-    // Serial.println(mag, DEC);
+    if (canUpdate){
+      for (int i = 0; i < 3; ++i) {
+        Gyro_degree[i] = xyz_degree[i];
+      }
+    }
 
     delay(BNO055_SAMPLERATE_DELAY_MS);
   }
 }
 
-void Core0US(void *args) {//サブCPU(Core0)で実行するプログラム
+// ultrasonic-left--------------------------------------------------------------------------
+void Core1USL(void *args) {// Core1で実行するプログラム
+  const int pingPin = 18;
+  unsigned long duration;
+  int cm;
   while (1) {//ここで無限ループを作っておく
     //ピンをOUTPUTに設定（パルス送信のため）
     pinMode(pingPin, OUTPUT);
@@ -137,11 +155,10 @@ void Core0US(void *args) {//サブCPU(Core0)で実行するプログラム
     duration=duration/2;  
     //cmに変換
     cm = int(duration/29); 
-    
-    Serial.print(cm);
-    Serial.print("cm");
-    Serial.println();
-  
+
+    if (canUpdate){
+      ultrasonic_left_cm = cm;
+    }
     delay(25);
   }
 }
