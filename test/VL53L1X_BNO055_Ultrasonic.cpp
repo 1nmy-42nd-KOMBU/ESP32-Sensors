@@ -9,7 +9,7 @@ VL53L1X sensor;
 #define Wire1_SDA (33)
 #define Wire1_SCL (32)
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire1);
-TaskHandle_t thp[3];
+TaskHandle_t thp[4];
 
 // data of each thread------------
 // loop(tof)
@@ -54,8 +54,9 @@ void setup()
   /* Use external crystal for better accuracy */
   bno.setExtCrystalUse(true);
   xTaskCreatePinnedToCore(Core0GyS, "CoreGyS", 4096, NULL, 3, &thp[0], 0); 
-  xTaskCreatePinnedToCore(Core1USL, "Core1USL", 4096, NULL, 3, &thp[1], 1);
-  xTaskCreatePinnedToCore(Core1tof, "Core1tof", 4096, NULL, 3, &thp[2], 1);
+  xTaskCreatePinnedToCore(Core1USR, "Core1USR", 4096, NULL, 3, &thp[1], 1);
+  xTaskCreatePinnedToCore(Core1USL, "Core1USL", 4096, NULL, 3, &thp[2], 1);
+  xTaskCreatePinnedToCore(Core1tof, "Core1tof", 4096, NULL, 3, &thp[3], 1);
 }
 
 // main-loop------------------------------------------------------------------------------
