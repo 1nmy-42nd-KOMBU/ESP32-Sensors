@@ -13,7 +13,7 @@ TaskHandle_t thp[4];
 
 // data of each thread------------
 // loop(tof)
-int tof_cm;
+int tof_mm;
 // Core0GyS(Gyro)
 int Gyro_degree[3];
 // Core1USL(ultrasonic-left)
@@ -30,7 +30,8 @@ void setup()
   Wire.begin();
   Wire.setClock(100000); // use 100 kHz I2C
 
-  pinMode(pingPin, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(18, OUTPUT);
 
   sensor.setTimeout(500);
   if (!sensor.init())
@@ -54,8 +55,7 @@ void setup()
   /* Use external crystal for better accuracy */
   bno.setExtCrystalUse(true);
   xTaskCreatePinnedToCore(Core0GyS, "CoreGyS", 4096, NULL, 3, &thp[0], 0); 
-  xTaskCreatePinnedToCore(Core1USR, "Core1USR", 4096, NULL, 3, &thp[1], 1);
-  xTaskCreatePinnedToCore(Core1USL, "Core1USL", 4096, NULL, 3, &thp[2], 1);
+  xTaskCreatePinnedToCore(Core1US, "Core1US", 4096, NULL, 3, &thp[1], 1);
   xTaskCreatePinnedToCore(Core1tof, "Core1tof", 4096, NULL, 3, &thp[3], 1);
 }
 
@@ -63,26 +63,31 @@ void setup()
 void loop()
 {
   delay(100);
-  canUpdate = false;
   delayMicroseconds(10);
-  Serial.println(tof_cm);
+  Serial.print("tof;");
+  Serial.println(tof_mm);
+  Serial.print("Gyro;");
   for (int i = 0; i < 3; ++i) {
-    Serial.println(Gyro_degree[i]);
+    Serial.print(Gyro_degree[i]);
+    Serial.print(",");
   }
+  Serial.println();
+  Serial.print("ultrasonic left;");
   Serial.println(ultrasonic_left_cm);
-  canUpdate = true;
+  Serial.print("ultrasonic right;");
+  Serial.println(ultrasonic_right_cm);
 }
 
 // tof------------------------------------------------------------------------------------
 void Core1tof(void *args) {//Core1で実行するプログラム
   while (1) {//ここで無限ループを作っておく
-    int tof_cm_tmp =sensor.read();
+    int tof_mm_tmp =sensor.read();
     if (sensor.timeoutOccurred()) { // タイムアウトの監視 
       Serial.print(" TIMEOUT");
       vlxReset(19);
     }
     if (canUpdate){
-      tof_cm = tof_cm_tmp;
+      tof_mm = tof_mm_tmp;
     }
   }
 }
@@ -130,71 +135,67 @@ void Core0GyS(void *args) {//サブCPU(Core0)で実行するプログラム
 }
 
 // ultrasonic-Left--------------------------------------------------------------------------
-void Core1USL(void *args) {// Core1で実行するプログラム
-  const int pingPin = 18;
-  unsigned long duration;
-  int cm;
+void Core1US(void *args) {// Core1で実行するプログラム
+  const int pingPin_left = 18; // set for 18 pin
+  unsigned long duration_left;
+  int cm_left;
+  const int pingPin_right = 5; // set for 5 pin
+  unsigned long duration_right;
+  int cm_right;
   while (1) {//ここで無限ループを作っておく
+    // 18-pin-------------------------------------------------------------------------------
     //ピンをOUTPUTに設定（パルス送信のため）
-    pinMode(pingPin, OUTPUT);
+    pinMode(pingPin_left, OUTPUT);
     //LOWパルスを送信
-    digitalWrite(pingPin, LOW);
+    digitalWrite(pingPin_left, LOW);
     delayMicroseconds(2);  
     //HIGHパルスを送信
-    digitalWrite(pingPin, HIGH);  
+    digitalWrite(pingPin_left, HIGH);  
     //5uSパルスを送信してPingSensorを起動
     delayMicroseconds(5); 
-    digitalWrite(pingPin, LOW); 
+    digitalWrite(pingPin_left, LOW); 
     
     //入力パルスを読み取るためにデジタルピンをINPUTに変更（シグナルピンを入力に切り替え）
-    pinMode(pingPin, INPUT);   
+    pinMode(pingPin_left, INPUT);   
     
     //入力パルスの長さを測定
-    duration = pulseIn(pingPin, HIGH);  
+    duration_left = pulseIn(pingPin_left, HIGH);  
   
     //パルスの長さを半分に分割
-    duration=duration/2;  
+    duration_left=duration_left/2;  
     //cmに変換
-    cm = int(duration/29); 
+    cm_left = int(duration_left/29); 
 
     if (canUpdate){
-      ultrasonic_left_cm = cm;
+      ultrasonic_left_cm = cm_left;
     }
-    delay(25);
-  }
-}
-
-// ultrasonic-Right--------------------------------------------------------------------------
-void Core1USR(void *args) {// Core1で実行するプログラム
-  const int pingPin = 5;
-  unsigned long duration;
-  int cm;
-  while (1) {//ここで無限ループを作っておく
+    delay(5);
+    // 5-pin--------------------------------------------------------------------------------
     //ピンをOUTPUTに設定（パルス送信のため）
-    pinMode(pingPin, OUTPUT);
+    pinMode(pingPin_right, OUTPUT);
     //LOWパルスを送信
-    digitalWrite(pingPin, LOW);
+    digitalWrite(pingPin_right, LOW);
     delayMicroseconds(2);  
     //HIGHパルスを送信
-    digitalWrite(pingPin, HIGH);  
+    digitalWrite(pingPin_right, HIGH);  
     //5uSパルスを送信してPingSensorを起動
     delayMicroseconds(5); 
-    digitalWrite(pingPin, LOW); 
+    digitalWrite(pingPin_right, LOW); 
     
     //入力パルスを読み取るためにデジタルピンをINPUTに変更（シグナルピンを入力に切り替え）
-    pinMode(pingPin, INPUT);   
+    pinMode(pingPin_right, INPUT);   
     
     //入力パルスの長さを測定
-    duration = pulseIn(pingPin, HIGH);  
+    duration_right = pulseIn(pingPin_right, HIGH);  
   
     //パルスの長さを半分に分割
-    duration=duration/2;  
+    duration_right=duration_right/2;  
     //cmに変換
-    cm = int(duration/29); 
+    cm_right = int(duration_right/29); 
 
     if (canUpdate){
-      ultrasonic_right_cm = cm;
+      ultrasonic_right_cm = cm_right;
     }
-    delay(25);
+    delay(5);
   }
 }
