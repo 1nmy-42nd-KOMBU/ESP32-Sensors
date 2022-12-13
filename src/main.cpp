@@ -3,10 +3,6 @@
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <VL53L1X.h>
-#include "HardwareSerial.h"
-// this sample code provided by www.programmingboss.com
-#define RXp2 16
-#define TXp2 17
 
 #define BNO055_SAMPLERATE_DELAY_MS (10)
 #define Wire1_SDA (33)
@@ -31,8 +27,6 @@ int16_t xyz_degree_tmp[3];
 void setup()
 {
   Serial.begin(115200);
-  Serial2.begin(115200, SERIAL_8N1, RXp2, TXp2);
-  while(!Serial2); //wait untill it opens
   Wire1.begin(Wire1_SDA, Wire1_SCL);
   Wire.begin();
   Wire.setClock(100000); // use 100 kHz I2C
@@ -159,9 +153,9 @@ void Core0GyS(void *args) {//サブCPU(Core0)で実行するプログラム
     if (abs(xyz_degree_tmp[1]) + abs(xyz_degree_tmp[2]) > 7)
     {
       if (xyz_degree_tmp[1] < 0){
-        bump = 1;
-      } else if (xyz_degree_tmp[1] > 0){
         bump = 2;
+      } else if (xyz_degree_tmp[1] > 0){
+        bump = 1;
       } else {bump = 3;}
     }else{
       bump=0;
