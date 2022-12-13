@@ -71,6 +71,7 @@ void loop()
 {
   if (Serial2.available() > 0){
     int8_t start_byte_from_Arduino = Serial2.read();
+    while(Serial2.available())Serial2.read(); // 受信バッファをからにする
     if (start_byte_from_Arduino == 32){
       char list[9] = {0,0,0,0,0,0,0,0,0};
       list[0] = 64; // start byte
