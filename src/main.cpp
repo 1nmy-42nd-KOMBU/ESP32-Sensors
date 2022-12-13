@@ -31,7 +31,7 @@ int16_t xyz_degree_tmp[3];
 void setup()
 {
   Serial.begin(115200);
-  Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
+  Serial2.begin(115200, SERIAL_8N1, RXp2, TXp2);
   while(!Serial2); //wait untill it opens
   Wire1.begin(Wire1_SDA, Wire1_SCL);
   Wire.begin();
@@ -73,7 +73,7 @@ void loop()
     int8_t start_byte_from_Arduino = Serial2.read();
     if (start_byte_from_Arduino == 32){
       char list[9] = {0,0,0,0,0,0,0,0,0};
-      list[0] = 64;
+      list[0] = 64; // start byte
       list[1] = tof_mm[0];
       list[2] = tof_mm[1];
       Serial.print("tof;"); // tof------------------------------
@@ -154,7 +154,17 @@ void Core0GyS(void *args) {//サブCPU(Core0)で実行するプログラム
     Gyro_degree[0] = highByte(xyz_degree_tmp[0]);
     Gyro_degree[1] = lowByte(xyz_degree_tmp[0]);
 
-    if (abs(xyz_degree_tmp[1]) + abs(xyz_degree_tmp[2]) > 7){bump=1;}else{bump=0;}
+    // 上りなら1、下りなら2、0なら3を返す、何もなければ0
+    if (abs(xyz_degree_tmp[1]) + abs(xyz_degree_tmp[2]) > 7)
+    {
+      if (xyz_degree_tmp[1] < 0){
+        bump = 1;
+      } else if (xyz_degree_tmp[1] > 0){
+        bump = 2;
+      } else {bump = 3;}
+    }else{
+      bump=0;
+    }
 
     delay(BNO055_SAMPLERATE_DELAY_MS);
   }
