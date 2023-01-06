@@ -48,7 +48,7 @@ void loop()
   if (sensor.timeoutOccurred()) { 
     Serial.print(" TIMEOUT");
     vlxReset(19);
-   }
+  }
 
   Serial.println();
 }
