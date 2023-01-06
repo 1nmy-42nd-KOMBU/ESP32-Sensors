@@ -80,9 +80,9 @@ void vlxReset(uint8_t resetPin) {
 
 /* Reset the sensor over here, you can change the delay */
   digitalWrite(resetPin, LOW);
-  vTaskDelay(600 / portTICK_PERIOD_MS);  // Change to delay(600); if not using rtos
+  delay(600);  // Change to delay(600); if not using rtos
   digitalWrite(resetPin, HIGH);
-  vTaskDelay(600 / portTICK_PERIOD_MS);
+  delay(600);
 
 
   if (!sensor.init()) {
