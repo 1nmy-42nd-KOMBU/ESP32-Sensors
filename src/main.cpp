@@ -17,9 +17,6 @@ void setup()
   Wire1.setClock(100000); // use 100 kHz I2C
   Wire.begin();
 
-  pinMode(5, OUTPUT);
-  pinMode(18, OUTPUT);
-
   sensor.setBus(&Wire1);
   sensor.setTimeout(500);
   if (!sensor.init())
