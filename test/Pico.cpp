@@ -25,7 +25,7 @@ boolean Num_Array[11][7]={
     {0,0,0,0,1,0,0} // empty
 };
 
-//LED表示関数を定義
+//LED表示
 void NumPrint(int number){
     for (int i=1; i<=7; ++){
         digitalWrite(i,Num_Array[number][i-1]);
@@ -38,10 +38,10 @@ void loop(){
         num_3digits = 999;
     }
 
-    // 1桁目
-    digitalWrite(10,LOW);
+    // 3桁目
+    digitalWrite(10,HIGH);
     digitalWrite(9.HIGH);
-    digitalwrite(8,HIGH);
+    digitalwrite(8,LOW);
     NumPrint(num_3digits / 100);
 
     // 2桁目
@@ -50,9 +50,9 @@ void loop(){
     digitalwrite(8,HIGH);
     NumPrint(num_3digits % 100 / 10);
 
-    // 3桁目
-    digitalWrite(10,HIGH);
+    // 1桁目
+    digitalWrite(10,LOW);
     digitalWrite(9.HIGH);
-    digitalwrite(8,LOW);
+    digitalwrite(8,HIGH);
     NumPrint(num_3digits % 10);
 }
