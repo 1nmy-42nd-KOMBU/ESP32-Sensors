@@ -1,7 +1,7 @@
 //
 // 3桁の7セグメントLEDを光らせるプログラム
 //
-int num_3digits = 100;
+int num_3digits = 256;
 
 void setup(){
     Serial.begin(115200);
@@ -29,12 +29,15 @@ boolean Num_Array[11][7]={
 //LED表示
 void NumPrint(int number){
     for (int i=1; i<=7; i++){
-        Serial.print(number);
-        Serial.print(",");
-        Serial.print(i-1);
-        Serial.print(",");
-        Serial.println(Num_Array[number][i-1]);
+//        Serial.print(number);
+//        Serial.print(",");
+//        Serial.print(i-1);
+//        Serial.print(",");
+//        Serial.println(Num_Array[number][i-1]);
         digitalWrite(i,Num_Array[number][i-1]);
+    }
+    for (int i=1; i<=7; i++){
+        digitalWrite(i,LOW);
     }
 }
 
