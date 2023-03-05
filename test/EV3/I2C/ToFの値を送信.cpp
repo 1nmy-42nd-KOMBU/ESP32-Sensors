@@ -77,7 +77,7 @@ void vlxReset(uint8_t resetPin) {
 
 /* Reset the sensor over here, you can change the delay */
   digitalWrite(resetPin, LOW);
-  delay(600);
+  delay(600);  // Change to delay(600); if not using rtos
   digitalWrite(resetPin, HIGH);
   delay(600);
 

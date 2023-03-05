@@ -2,10 +2,6 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
-#include "HardwareSerial.h"
-
-#define RXp2 16
-#define TXp2 17
 
 /* Set the delay between fresh samples */
 #define BNO055_SAMPLERATE_DELAY_MS (100)
@@ -57,7 +53,6 @@ void setup(void)
 {
   Wire1.begin(Wire1_SDA, Wire1_SCL);
   Serial.begin(115200);
-  Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
   Serial.println("Orientation Sensor Test"); Serial.println("");
 
   /* Initialise the sensor */
