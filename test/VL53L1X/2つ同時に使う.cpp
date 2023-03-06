@@ -89,6 +89,10 @@ void vlxReset()
     }
   }
 
+  vl_right.setDistanceMode(VL53L1X::Long);
+  vl_left.setDistanceMode(VL53L1X::Long);
+  vl_right.setMeasurementTimingBudget(50000); //測定タイミングバジェット(1回の距離測定)に許容される時間[micros]
+  vl_left.setMeasurementTimingBudget(50000); 
   vl_right.startContinuous(50);
   vl_left.startContinuous(50);
 }
