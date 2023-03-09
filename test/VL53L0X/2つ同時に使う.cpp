@@ -83,6 +83,7 @@ void vlxReset()
 
   digitalWrite(xshut_left, HIGH);
   delay(1);
+VL53L0X[0].setTimeout(500);
   if (!VL53L0X[0].init())
   {
     while (1){
@@ -90,12 +91,19 @@ void vlxReset()
       delay(1000);
     }
   }
-  VL53L0X[0].setTimeout(500);
   VL53L0X[0].setAddress(vl_left_address);
+    // 射程を広げる
+  VL53L0X[0].setSignalRateLimit(0.1);
+  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+
+  // 高速モード
+  VL53L0X[0].setMeasurementTimingBudget(20000);
   VL53L0X[0].startContinuous(10);
 
   digitalWrite(xshut_right, HIGH);
   delay(1);
+  VL53L0X[1].setTimeout(500);
   if (!VL53L0X[1].init())
   {
     while (1){
@@ -103,7 +111,14 @@ void vlxReset()
       delay(1000);
     }
   }
-  VL53L0X[1].setTimeout(500);
+
+  // 射程を広げる
+  VL53L0X[1].setSignalRateLimit(0.1);
+  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+
+  // 高速モード
+  VL53L0X[1].setMeasurementTimingBudget(20000);
   VL53L0X[1].startContinuous(10);
 }
 
