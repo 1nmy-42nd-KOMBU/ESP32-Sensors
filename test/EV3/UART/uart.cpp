@@ -2,8 +2,8 @@
 #include "HardwareSerial.h"
 #include <Wire.h>
 // this sample code provided by www.programmingboss.com
-#define RXp2 16
-#define TXp2 17
+#define RXp2 19
+#define TXp2 18
 
 void setup()
 {
