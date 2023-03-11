@@ -6,17 +6,19 @@ void setup() {
   delay(100);
 
   analogSetAttenuation(ADC_6db);
-  pinMode(39, ANALOG);
-  pinMode(34, ANALOG);
+  pinMode(12, ANALOG);
+  pinMode(14, ANALOG);
+  pinMode(27, ANALOG);
+  pinMode(26, ANALOG);
 }
 void loop() {
-  Serial.print("kit; ");
-  Serial.print(analogRead(39));
-  Serial.print(", 34(left); ");
-  Serial.print(analogRead(34));
-  Serial.print(", 35(right); ");
-  Serial.print(analogRead(35));
-  Serial.print(", 32(central); ");
-  Serial.println(analogRead(32));
+  Serial.print("12; ");
+  Serial.print(analogRead(12));
+  Serial.print(", 14; ");
+  Serial.print(analogRead(14));
+  Serial.print(", 27; ");
+  Serial.print(analogRead(27));
+  Serial.print(", 26; ");
+  Serial.println(analogRead(26));
   delay(500);
 }
