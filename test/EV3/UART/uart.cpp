@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "HardwareSerial.h"
 #include <Wire.h>
-// this sample code provided by www.programmingboss.com
+
 #define RXp2 19
 #define TXp2 18
 
