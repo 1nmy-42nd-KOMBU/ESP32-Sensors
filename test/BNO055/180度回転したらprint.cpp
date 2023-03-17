@@ -22,14 +22,39 @@ void Core0a(void *args) {//サブCPU(Core0)で実行するプログラム
     int16_t start_angle = event.orientation.x;
     int16_t target_angle_range_min = start_angle + 170; // 目標角の範囲の最小値
     int16_t target_angle_range_max = start_angle + 180; // 目標角の範囲の最大値
-    // 値を0~360の範囲に落とし込む
-    if (target_angle_range_min > 360){target_angle_range_min -= 360;}
-    if (target_angle_range_max > 360){target_angle_range_max -= 360;}
+    
+    if (target_angle_range_max <360){
+      // そのままでOK
+      while (1){
+        sensors_event_t event;
+        bno.getEvent(&event);
+        int angle_now = event.orientation.x;
+        if (target_angle_range_min <= angle_now && angle_now < target_angle_range_max){break;}
+        delay(BNO055_SAMPLERATE_DELAY_MS);
+      }
+    } else if (target_angle_range_max >= 360 && target_angle_range_min < 360){
+      target_angle_range_max -= 360;
+      while (1){
+        sensors_event_t event;
+        bno.getEvent(&event);
+        int angle_now = event.orientation.x;
+        if (target_angle_range_min <= angle_now && angle_now < 360 || 0 <= angle_now && angle_now <= target_angle_range_max){break;}
+        delay(BNO055_SAMPLERATE_DELAY_MS);
+      }
+    } else if (target_angle_range_min >= 360){
+      target_angle_range_max -= 360;
+      target_angle_range_min -= 360;
+      while (1){
+        sensors_event_t event;
+        bno.getEvent(&event);
+        int angle_now = event.orientation.x;
+        if (target_angle_range_min <= angle_now && angle_now < target_angle_range_max){break;}
+        delay(BNO055_SAMPLERATE_DELAY_MS);
+      }
+    }
 
-    Serial.print(F("Orientation: "));
-    Serial.println((float)event.orientation.x);
+    Serial.print(F("turn: "));
 
-    delay(BNO055_SAMPLERATE_DELAY_MS);
   }
 }
 

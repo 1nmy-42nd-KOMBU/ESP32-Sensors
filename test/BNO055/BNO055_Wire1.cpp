@@ -19,6 +19,9 @@ void Core0a(void *args) {//サブCPU(Core0)で実行するプログラム
     sensors_event_t event;
     bno.getEvent(&event);
 
+    // float start_angle = event.orientation.x;
+    // float target_angle = start_angle + 180;
+
     /* The processing sketch expects data as roll, pitch, heading */
     Serial.print(F("Orientation: "));
     Serial.print((float)event.orientation.x);
