@@ -84,9 +84,12 @@ void turn_180(void){
     }
   }
 
-  Serial2.print(180);
+  while (not Serial2.available()){
+    Serial2.write(180);
+    delay(10);
+  }
+  int hoge = Serial2.read();
 }
-
 
 void BNO055(void *args) {//サブCPU(Core0)で実行するプログラム
   while (1) {
