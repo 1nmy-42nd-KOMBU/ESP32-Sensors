@@ -100,14 +100,20 @@ void turn_for_designated_angle(int16_t degree){
   }
   Serial2.read(); // read 180 or 90
   serialwrite = false;
-  should_turn_180 = false;
-  should_turn_90 = false;
 }
 
 void BNO055(void *args) {//サブCPU(Core0)で実行するプログラム
   while (1) {
     // 180度回転
-    if (should_turn_180){turn_for_designated_angle(180);}
+    if (should_turn_180){
+      turn_for_designated_angle(180);
+      should_turn_180 = false;
+    }
+    // 90度回転
+    if (should_turn_90){
+      turn_for_designated_angle(90);
+      should_turn_90 = false;
+    }
     // 通常業務
     sensors_event_t event;
     bno.getEvent(&event);
