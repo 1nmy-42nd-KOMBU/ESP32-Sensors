@@ -10,7 +10,7 @@
 #define TXp2 18
 
 /* Set the delay between fresh samples */
-#define BNO055_SAMPLERATE_DELAY_MS (100)
+#define BNO055_SAMPLERATE_DELAY_MS (50)
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire1);
@@ -46,11 +46,54 @@ volatile bool should_turn_180 = false;
 // MultiThread
 TaskHandle_t thp[2]; //ToFを追加して3になる予定
 // 優先順位はUART5→ジャイロ4→ToF3→タッチ&ライン-
+void turn_180(void){
+  sensors_event_t event;
+  bno.getEvent(&event);
+
+  int16_t start_angle = event.orientation.x;
+  int16_t target_angle_range_min = start_angle + 170; // 目標角の範囲の最小値
+  int16_t target_angle_range_max = start_angle + 180; // 目標角の範囲の最大値
+
+  if (target_angle_range_max <360){
+     // そのままでOK
+    while (1){
+      sensors_event_t event;
+      bno.getEvent(&event);
+      int angle_now = event.orientation.x;
+      if (target_angle_range_min <= angle_now && angle_now < target_angle_range_max){break;}
+      delay(BNO055_SAMPLERATE_DELAY_MS);
+    }
+  } else if (target_angle_range_max >= 360 && target_angle_range_min < 360){
+    target_angle_range_max -= 360;
+    while (1){
+      sensors_event_t event;
+      bno.getEvent(&event);
+      int angle_now = event.orientation.x;
+      if (target_angle_range_min <= angle_now && angle_now < 360 || 0 <= angle_now && angle_now <= target_angle_range_max){break;}
+      delay(BNO055_SAMPLERATE_DELAY_MS);
+    }
+  } else if (target_angle_range_min >= 360){
+    target_angle_range_max -= 360;
+    target_angle_range_min -= 360;
+    while (1){
+      sensors_event_t event;
+      bno.getEvent(&event);
+      int angle_now = event.orientation.x;
+      if (target_angle_range_min <= angle_now && angle_now < target_angle_range_max){break;}
+      delay(BNO055_SAMPLERATE_DELAY_MS);
+    }
+  }
+
+  Serial2.print(180);
+}
+
 
 void BNO055(void *args) {//サブCPU(Core0)で実行するプログラム
   while (1) {
     // 180度回転とか
-    
+    if (should_turn_180){
+      turn_180();
+    }
     // 通常業務
     sensors_event_t event;
     bno.getEvent(&event);
@@ -84,7 +127,7 @@ void UART(void *args) {
       Serial.println("received 10 and sent 10");
     } else if (hoge == 180){
       should_turn_180 = true;
-      Serial2.write(180);
+      Serial2.write(18);
     } else {
       Serial.print(hoge);
       Serial.println(",not 10 was sent");
