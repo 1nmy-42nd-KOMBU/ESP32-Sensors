@@ -41,19 +41,27 @@ volatile uint8_t line_sensor_statues = 0;
 // 何もなければ0 中心のラインセンサが白で1 レスキューキットで2 両方で3
 volatile uint8_t central_line_sensor_AND_rescue_kit = 0;
 
+volatile bool should_turn_90 = false;
 volatile bool should_turn_180 = false;
+volatile bool serialwrite = false;
 
 // MultiThread
 TaskHandle_t thp[2]; //ToFを追加して3になる予定
 // 優先順位はUART5→ジャイロ4→ToF3→タッチ&ライン-
-void turn_180(void){
+
+void turn_for_designated_angle(int16_t degree);
+void BNO055(void *args);
+void UART(void *args);
+
+void turn_for_designated_angle(int16_t degree){
   sensors_event_t event;
   bno.getEvent(&event);
 
   int16_t start_angle = event.orientation.x;
-  int16_t target_angle_range_min = start_angle + 170; // 目標角の範囲の最小値
-  int16_t target_angle_range_max = start_angle + 180; // 目標角の範囲の最大値
+  int16_t target_angle_range_min = start_angle + degree - 10; // 目標角の範囲の最小値
+  int16_t target_angle_range_max = start_angle + degree; // 目標角の範囲の最大値
 
+  // 繰り上がりとかを考慮しつつ180度回転するのを待つ
   if (target_angle_range_max <360){
      // そのままでOK
     while (1){
@@ -83,20 +91,23 @@ void turn_180(void){
       delay(BNO055_SAMPLERATE_DELAY_MS);
     }
   }
-
+  // 終わりを告げる
+  serialwrite = true; // セマフォ的な
+  delay(1);
   while (not Serial2.available()){
-    Serial2.write(180);
-    delay(10);
+    Serial2.write((char)degree);
+    delay(20);
   }
-  int hoge = Serial2.read();
+  Serial2.read(); // read 180 or 90
+  serialwrite = false;
+  should_turn_180 = false;
+  should_turn_90 = false;
 }
 
 void BNO055(void *args) {//サブCPU(Core0)で実行するプログラム
   while (1) {
-    // 180度回転とか
-    if (should_turn_180){
-      turn_180();
-    }
+    // 180度回転
+    if (should_turn_180){turn_for_designated_angle(180);}
     // 通常業務
     sensors_event_t event;
     bno.getEvent(&event);
@@ -117,7 +128,7 @@ void BNO055(void *args) {//サブCPU(Core0)で実行するプログラム
 void UART(void *args) {
   while (1) 
   {
-    while (not Serial2.available()){
+    while ((not Serial2.available()) || (not serialwrite)){
       delay(1);
     }
     int hoge = Serial2.read();
@@ -131,6 +142,9 @@ void UART(void *args) {
     } else if (hoge == 180){
       should_turn_180 = true;
       Serial2.write(18);
+    } else if (hoge == 90){
+      should_turn_90 = true;
+      Serial2.write(9);
     } else {
       Serial.print(hoge);
       Serial.println(",not 10 was sent");
