@@ -58,8 +58,8 @@ void turn_for_designated_angle(int16_t degree){
   bno.getEvent(&event);
 
   int16_t start_angle = event.orientation.x;
-  int16_t target_angle_range_min = start_angle + degree - 10; // 目標角の範囲の最小値
-  int16_t target_angle_range_max = start_angle + degree; // 目標角の範囲の最大値
+  int16_t target_angle_range_min = start_angle + degree - 17; // 目標角の範囲の最小値
+  int16_t target_angle_range_max = start_angle + degree - 7; // 目標角の範囲の最大値
 
   // 繰り上がりとかを考慮しつつ180度回転するのを待つ
   if (target_angle_range_max <360){
@@ -134,7 +134,7 @@ void BNO055(void *args) {//サブCPU(Core0)で実行するプログラム
 void UART(void *args) {
   while (1) 
   {
-    while ((not Serial2.available()) || (not serialwrite)){
+    while ((not Serial2.available()) || serialwrite){
       delay(1);
     }
     int hoge = Serial2.read();
@@ -144,7 +144,7 @@ void UART(void *args) {
                             central_line_sensor_AND_rescue_kit,
                             gyro_stats};
       Serial2.write(listforEV3,4);
-      Serial.println("received 10 and sent 10");
+      Serial.println("received 10 and sent 4 Byte");
     } else if (hoge == 180){
       should_turn_180 = true;
       Serial2.write(18);
