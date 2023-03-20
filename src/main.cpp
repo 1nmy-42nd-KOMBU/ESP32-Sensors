@@ -214,7 +214,7 @@ void loop() {
   // アームのラインセンサ
   int central_light = analogRead(Central_Light_Sensor);
   int rescue_kit = analogRead(RescueKit_Sensor);
-  if (central_light >= 350 && rescue_kit >= 1000){
+  if (central_light >= 500 && rescue_kit >= 1000){
     central_line_sensor_AND_rescue_kit = 3;
   } else if (central_light >= 350){
     central_line_sensor_AND_rescue_kit = 1;
