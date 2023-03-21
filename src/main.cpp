@@ -214,7 +214,7 @@ void loop() {
   // アームのラインセンサ
   int central_light = analogRead(Central_Light_Sensor);
   int rescue_kit = analogRead(RescueKit_Sensor);
-  if (central_light >= 500 && rescue_kit >= 1000){
+  if (central_light >= 350 && rescue_kit >= 1000){
     central_line_sensor_AND_rescue_kit = 3;
   } else if (central_light >= 350){
     central_line_sensor_AND_rescue_kit = 1;
@@ -224,7 +224,7 @@ void loop() {
     central_line_sensor_AND_rescue_kit = 0;
   }
   // Serial.print("12central; ");
-  // Serial.print(analogRead(Central_Light_Sensor)); // 350より高いと白
+  Serial.println(analogRead(Central_Light_Sensor)); // 350より高いと白
   // Serial.print(", 14right; ");
   // Serial.print(analogRead(Right_Light_Sensor)); // 500切ったら黒
   // Serial.print(", 27left; ");
@@ -240,7 +240,7 @@ void loop() {
   // Serial.print(digitalRead(Arm_Left_Button));
   // Serial.print(" Arm Right;");
   // Serial.println(digitalRead(Arm_Right_Button));
-  // delay(100);
+  delay(300);
 
   // バンパーのタッチセンサ
   if (digitalRead(Left_Button) == 1 && digitalRead(Right_Button) == 0){
