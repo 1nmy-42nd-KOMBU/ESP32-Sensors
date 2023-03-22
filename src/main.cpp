@@ -4,6 +4,15 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
+#include <VL53L0X.h>
+
+// VL53L0X[0]を左 VL53L0X[1]を右とする
+VL53L0X VL53L0X[2];
+
+const int xshut_left = 23;
+const int xshut_right = 5;
+
+byte vl_left_address = 0x10; // 左のVLのアドレスは0x10
 
 // pins of UART
 #define RXp2 19
@@ -45,13 +54,97 @@ volatile bool should_turn_90 = false;
 volatile bool should_turn_180 = false;
 volatile bool serialwrite = false;
 
+// 左が壁で1、右が壁で2、両方で3、何もなくて0
+volatile uint8_t isWall = 0;
+
 // MultiThread
-TaskHandle_t thp[2]; //ToFを追加して3になる予定
+TaskHandle_t thp[3]; //ToFを追加して3になる予定
 // 優先順位はUART5→ジャイロ4→ToF3→タッチ&ライン-
 
 void turn_for_designated_angle(int16_t degree);
 void BNO055(void *args);
 void UART(void *args);
+void vlxReset(void);
+
+// ================================================================================
+
+void vlxReset()
+{
+  Serial.println("Resetting Sensor");
+ /* Stop the Sensor reading and even stop the i2c Transmission */
+  VL53L0X[0].stopContinuous();
+  VL53L0X[1].stopContinuous();
+  Wire.endTransmission();
+
+  digitalWrite(xshut_left, LOW);
+  digitalWrite(xshut_right, LOW);
+  delay(1);
+
+  digitalWrite(xshut_left, HIGH);
+  delay(1);
+VL53L0X[0].setTimeout(500);
+  if (!VL53L0X[0].init())
+  {
+    while (1){
+      Serial.println("Failed to detect and initialize vl_left!");
+      delay(1000);
+    }
+  }
+  VL53L0X[0].setAddress(vl_left_address);
+    // 射程を広げる
+  VL53L0X[0].setSignalRateLimit(0.1);
+  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+
+  // 高速モード
+  VL53L0X[0].setMeasurementTimingBudget(20000);
+  VL53L0X[0].startContinuous(10);
+
+  digitalWrite(xshut_right, HIGH);
+  delay(1);
+  VL53L0X[1].setTimeout(500);
+  if (!VL53L0X[1].init())
+  {
+    while (1){
+      Serial.println("Failed to detect and initialize vl_left!");
+      delay(1000);
+    }
+  }
+
+  // 射程を広げる
+  VL53L0X[1].setSignalRateLimit(0.1);
+  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+
+  // 高速モード
+  VL53L0X[1].setMeasurementTimingBudget(20000);
+  VL53L0X[1].startContinuous(10);
+}
+
+void VL53L0X(void *args) {
+  uint16_t vl_left_mm = VL53L0X[0].readRangeSingleMillimeters();
+  Serial.print("left; ");
+  Serial.print(vl_left_address);
+  if (VL53L0X[0].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+  uint16_t vl_right_mm = VL53L0X[1].readRangeSingleMillimeters();
+  Serial.print(", right; ");
+  Serial.print(vl_right_mm);
+  if (VL53L0X[1].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+  Serial.println();
+
+  // 横に壁があるかを判定
+  if (vl_left_mm >= 200 && vl_right_mm >= 200){
+    isWall = 3;
+  } else if (vl_left_mm >= 200){
+    isWall = 1;
+  } else if (vl_right_mm >= 200){
+    isWall = 2;
+  } else {
+    isWall = 0;
+  }
+}
+
+// ================================================================================
 
 void turn_for_designated_angle(int16_t degree){
   sensors_event_t event;
@@ -102,7 +195,7 @@ void turn_for_designated_angle(int16_t degree){
   serialwrite = false;
 }
 
-void BNO055(void *args) {//サブCPU(Core0)で実行するプログラム
+void BNO055(void *args) {
   while (1) {
     // 180度回転
     if (should_turn_180){
@@ -139,12 +232,17 @@ void UART(void *args) {
     }
     int hoge = Serial2.read();
     if (hoge == 10){
-      char listforEV3[4] = {line_sensor_statues,
+      char listforEV3_10[4] = {line_sensor_statues,
                             front_touch_sensor,
                             central_line_sensor_AND_rescue_kit,
                             gyro_stats};
-      Serial2.write(listforEV3,4);
+      Serial2.write(listforEV3_10,4);
       Serial.println("received 10 and sent 4 Byte");
+    } else if (hoge == 11){
+      char listforEV3_11[3] = {isWall,
+                              front_touch_sensor,
+                              line_sensor_statues};
+      Serial2.write(listforEV3_11,3);
     } else if (hoge == 180){
       should_turn_180 = true;
       Serial2.write(18);
@@ -158,6 +256,7 @@ void UART(void *args) {
   }
 }
 
+// ================================================================================
 void setup()
 {
   // Serial with PC
@@ -166,11 +265,12 @@ void setup()
   Serial2.begin(115200, SERIAL_8N1, RXp2, TXp2);
   while(!Serial2); //wait untill it opens
 
-  // MultiThread
-  xTaskCreatePinnedToCore(UART, "UART", 4096, NULL, 5, &thp[0], 1); 
-  xTaskCreatePinnedToCore(BNO055, "BNO055", 4096, NULL, 5, &thp[1], 0);
+  // MultiThread ------------------------------------------------------------
+  xTaskCreatePinnedToCore(UART, "UART", 4096, NULL, 3, &thp[0], 0); 
+  xTaskCreatePinnedToCore(BNO055, "BNO055", 4096, NULL, 5, &thp[1], 1);
+  xTaskCreatePinnedToCore(VL53L0X, "VL53L0X", 4096, NULL, 4, &thp[2], 0);
 
-  // BNO055
+  // BNO055 ------------------------------------------------------------
   Wire1.begin(Wire1_SDA, Wire1_SCL);
   /* Initialise the sensor */
   if(!bno.begin()){
@@ -182,21 +282,80 @@ void setup()
   /* Use external crystal for better accuracy */
   bno.setExtCrystalUse(true);
 
-  // Line Sensors
+  // Line Sensors ------------------------------------------------------------
   analogSetAttenuation(ADC_6db);
   pinMode(12, ANALOG);
   pinMode(14, ANALOG);
   pinMode(27, ANALOG);
   pinMode(26, ANALOG);
 
-  // MicroSwitches
+  // MicroSwitches ------------------------------------------------------------
   pinMode(Left_Button,INPUT_PULLUP);
   pinMode(Right_Button,INPUT_PULLUP);
   pinMode(Arm_Left_Button,INPUT_PULLUP);
   pinMode(Arm_Right_Button,INPUT_PULLUP);
 
+  // vl0x ------------------------------------------------------------
+  Wire.begin();
+  // まず全てのGPIOをLOW
+  pinMode(xshut_left, OUTPUT);
+  pinMode(xshut_right, OUTPUT);
+  digitalWrite(xshut_left, LOW);
+  digitalWrite(xshut_right, LOW);
+  delay(1);
+
+  // 1台目
+  digitalWrite(xshut_left, HIGH);
+  delay(1);
+  VL53L0X[0].setTimeout(500);
+  if (!VL53L0X[0].init())
+  {
+    while (1){
+      Serial.println("Failed to detect and initialize vl_left!");
+      delay(1000);
+    }
+  }
+  VL53L0X[0].setAddress(vl_left_address);
+  
+  // 射程を広げる
+  VL53L0X[0].setSignalRateLimit(0.1);
+  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+
+  // 高速モード
+  VL53L0X[0].setMeasurementTimingBudget(20000);
+
+  // start
+  VL53L0X[0].startContinuous(10);
+
+  // 2台目
+  digitalWrite(xshut_right, HIGH);
+  delay(1);
+  VL53L0X[1].setTimeout(500);
+  if (!VL53L0X[1].init())
+  {
+    while (1){
+      Serial.println("Failed to detect and initialize vl_left!");
+      delay(1000);
+    }
+  }
+
+  // 射程を広げる
+  VL53L0X[1].setSignalRateLimit(0.1);
+  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+
+  // 高速モード
+  VL53L0X[1].setMeasurementTimingBudget(20000);
+
+  // start
+  VL53L0X[1].startContinuous(10);
+  
+  // ------------------------------------------------------------
   Serial.println("start");
 }
+
+// ================================================================================
 
 void loop() {
   // 左右のラインセンサ
