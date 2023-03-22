@@ -64,83 +64,74 @@ TaskHandle_t thp[3]; //ToFを追加して3になる予定
 void turn_for_designated_angle(int16_t degree);
 void BNO055(void *args);
 void UART(void *args);
-void vlxReset(void);
-
+void vlxReset(void);;
+void line_sensors(void *args);
 // ================================================================================
 
-void vlxReset()
-{
-  Serial.println("Resetting Sensor");
- /* Stop the Sensor reading and even stop the i2c Transmission */
-  VL53L0X[0].stopContinuous();
-  VL53L0X[1].stopContinuous();
-  Wire.endTransmission();
-
-  digitalWrite(xshut_left, LOW);
-  digitalWrite(xshut_right, LOW);
-  delay(1);
-
-  digitalWrite(xshut_left, HIGH);
-  delay(1);
-VL53L0X[0].setTimeout(500);
-  if (!VL53L0X[0].init())
-  {
-    while (1){
-      Serial.println("Failed to detect and initialize vl_left!");
-      delay(1000);
+void line_sensors(void *args){
+  while (1){
+  // 左右のラインセンサ
+    int left_light = analogRead(Left_Light_Sensor);
+    int right_light = analogRead(Right_Light_Sensor);
+    if (left_light <= 500 && right_light <= 500){
+      line_sensor_statues = 3;
+    } else if (left_light <= 500){
+      line_sensor_statues = 1;
+    } else if (right_light <= 500){
+      line_sensor_statues = 2;
+    } else {
+      line_sensor_statues = 0;
     }
-  }
-  VL53L0X[0].setAddress(vl_left_address);
-    // 射程を広げる
-  VL53L0X[0].setSignalRateLimit(0.1);
-  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
-  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
-
-  // 高速モード
-  VL53L0X[0].setMeasurementTimingBudget(20000);
-  VL53L0X[0].startContinuous(10);
-
-  digitalWrite(xshut_right, HIGH);
-  delay(1);
-  VL53L0X[1].setTimeout(500);
-  if (!VL53L0X[1].init())
-  {
-    while (1){
-      Serial.println("Failed to detect and initialize vl_left!");
-      delay(1000);
+    // アームのラインセンサ
+    int central_light = analogRead(Central_Light_Sensor);
+    int rescue_kit = analogRead(RescueKit_Sensor);
+    if (central_light >= 350 && rescue_kit >= 1000){
+      central_line_sensor_AND_rescue_kit = 3;
+    } else if (central_light >= 350){
+      central_line_sensor_AND_rescue_kit = 1;
+    } else if (rescue_kit >= 1000){
+      central_line_sensor_AND_rescue_kit = 2;
+    } else {
+      central_line_sensor_AND_rescue_kit = 0;
     }
-  }
+    // Serial.print("12central; ");
+    // Serial.println(analogRead(Central_Light_Sensor)); // 350より高いと白
+    // Serial.print(", 14right; ");
+    // Serial.print(analogRead(Right_Light_Sensor)); // 500切ったら黒
+    // Serial.print(", 27left; ");
+    // Serial.print(analogRead(Left_Light_Sensor));
+    // Serial.print(", 26kit; ");
+    // Serial.println(analogRead(RescueKit_Sensor)); // 1000超えたらレスキューキット
 
-  // 射程を広げる
-  VL53L0X[1].setSignalRateLimit(0.1);
-  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
-  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+    // Serial.print("Left;");
+    // Serial.print(digitalRead(Left_Button));
+    // Serial.print(" Right;");
+    // Serial.print(digitalRead(Right_Button));
+    // Serial.print(" Arm Left;");
+    // Serial.print(digitalRead(Arm_Left_Button));
+    // Serial.print(" Arm Right;");
+    // Serial.println(digitalRead(Arm_Right_Button));
+    // delay(300);
 
-  // 高速モード
-  VL53L0X[1].setMeasurementTimingBudget(20000);
-  VL53L0X[1].startContinuous(10);
-}
-
-void VL53L0X(void *args) {
-  uint16_t vl_left_mm = VL53L0X[0].readRangeSingleMillimeters();
-  Serial.print("left; ");
-  Serial.print(vl_left_address);
-  if (VL53L0X[0].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
-  uint16_t vl_right_mm = VL53L0X[1].readRangeSingleMillimeters();
-  Serial.print(", right; ");
-  Serial.print(vl_right_mm);
-  if (VL53L0X[1].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
-  Serial.println();
-
-  // 横に壁があるかを判定
-  if (vl_left_mm >= 200 && vl_right_mm >= 200){
-    isWall = 3;
-  } else if (vl_left_mm >= 200){
-    isWall = 1;
-  } else if (vl_right_mm >= 200){
-    isWall = 2;
-  } else {
-    isWall = 0;
+    // バンパーのタッチセンサ
+    if (digitalRead(Left_Button) == 1 && digitalRead(Right_Button) == 0){
+      front_touch_sensor = 3;
+    } else if (digitalRead(Left_Button) == 1){
+      front_touch_sensor = 1;
+    } else if (digitalRead(Right_Button) == 0){
+      front_touch_sensor = 2;
+    } else {
+      front_touch_sensor = 0;
+    }
+    // アームのタッチセンサ
+    if (digitalRead(Arm_Left_Button) == 1 && digitalRead(Arm_Right_Button) == 0){
+      front_touch_sensor += 30;
+    } else if (digitalRead(Arm_Left_Button) == 1){
+        front_touch_sensor += 10;
+    } else if (digitalRead(Arm_Right_Button) == 0){
+      front_touch_sensor += 20;
+    }
+    delay(1);
   }
 }
 
@@ -264,12 +255,12 @@ void setup()
   // Serial with EV3
   Serial2.begin(115200, SERIAL_8N1, RXp2, TXp2);
   while(!Serial2); //wait untill it opens
+  Wire.begin();
 
   // MultiThread ------------------------------------------------------------
   xTaskCreatePinnedToCore(UART, "UART", 4096, NULL, 3, &thp[0], 0); 
-  xTaskCreatePinnedToCore(BNO055, "BNO055", 4096, NULL, 5, &thp[1], 1);
-  xTaskCreatePinnedToCore(VL53L0X, "VL53L0X", 4096, NULL, 4, &thp[2], 0);
-
+  xTaskCreatePinnedToCore(BNO055, "BNO055", 4096, NULL, 5, &thp[1], 0);
+  xTaskCreatePinnedToCore(line_sensors,"line_sensors",4096,NULL,2,&thp[2],0);
   // BNO055 ------------------------------------------------------------
   Wire1.begin(Wire1_SDA, Wire1_SCL);
   /* Initialise the sensor */
@@ -296,7 +287,6 @@ void setup()
   pinMode(Arm_Right_Button,INPUT_PULLUP);
 
   // vl0x ------------------------------------------------------------
-  Wire.begin();
   // まず全てのGPIOをLOW
   pinMode(xshut_left, OUTPUT);
   pinMode(xshut_right, OUTPUT);
@@ -358,66 +348,77 @@ void setup()
 // ================================================================================
 
 void loop() {
-  // 左右のラインセンサ
-  int left_light = analogRead(Left_Light_Sensor);
-  int right_light = analogRead(Right_Light_Sensor);
-  if (left_light <= 500 && right_light <= 500){
-    line_sensor_statues = 3;
-  } else if (left_light <= 500){
-    line_sensor_statues = 1;
-  } else if (right_light <= 500){
-    line_sensor_statues = 2;
-  } else {
-    line_sensor_statues = 0;
-  }
-  // アームのラインセンサ
-  int central_light = analogRead(Central_Light_Sensor);
-  int rescue_kit = analogRead(RescueKit_Sensor);
-  if (central_light >= 350 && rescue_kit >= 1000){
-    central_line_sensor_AND_rescue_kit = 3;
-  } else if (central_light >= 350){
-    central_line_sensor_AND_rescue_kit = 1;
-  } else if (rescue_kit >= 1000){
-    central_line_sensor_AND_rescue_kit = 2;
-  } else {
-    central_line_sensor_AND_rescue_kit = 0;
-  }
-  // Serial.print("12central; ");
-  Serial.println(analogRead(Central_Light_Sensor)); // 350より高いと白
-  // Serial.print(", 14right; ");
-  // Serial.print(analogRead(Right_Light_Sensor)); // 500切ったら黒
-  // Serial.print(", 27left; ");
-  // Serial.print(analogRead(Left_Light_Sensor));
-  // Serial.print(", 26kit; ");
-  // Serial.println(analogRead(RescueKit_Sensor)); // 1000超えたらレスキューキット
+    uint16_t vl_left_mm = VL53L0X[0].readRangeSingleMillimeters();
+    // Serial.print("left; ");
+    // Serial.print(vl_left_mm);
+    if (VL53L0X[0].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+    uint16_t vl_right_mm = VL53L0X[1].readRangeSingleMillimeters();
+    // Serial.print(", right; ");
+    // Serial.print(vl_right_mm);
+    if (VL53L0X[1].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+    // Serial.println();
 
-  // Serial.print("Left;");
-  // Serial.print(digitalRead(Left_Button));
-  // Serial.print(" Right;");
-  // Serial.print(digitalRead(Right_Button));
-  // Serial.print(" Arm Left;");
-  // Serial.print(digitalRead(Arm_Left_Button));
-  // Serial.print(" Arm Right;");
-  // Serial.println(digitalRead(Arm_Right_Button));
-  delay(300);
+    // 横に壁があるかを判定
+    if (vl_left_mm >= 200 && vl_right_mm >= 200){
+      isWall = 3;
+    } else if (vl_left_mm >= 200){
+      isWall = 1;
+    } else if (vl_right_mm >= 200){
+      isWall = 2;
+    } else {
+      isWall = 0;
+    }
+}
 
-  // バンパーのタッチセンサ
-  if (digitalRead(Left_Button) == 1 && digitalRead(Right_Button) == 0){
-    front_touch_sensor = 3;
-  } else if (digitalRead(Left_Button) == 1){
-    front_touch_sensor = 1;
-  } else if (digitalRead(Right_Button) == 0){
-    front_touch_sensor = 2;
-  } else {
-    front_touch_sensor = 0;
-  }
-  // アームのタッチセンサ
-  if (digitalRead(Arm_Left_Button) == 1 && digitalRead(Arm_Right_Button) == 0){
-    front_touch_sensor += 30;
-  } else if (digitalRead(Arm_Left_Button) == 1){
-      front_touch_sensor += 10;
-  } else if (digitalRead(Arm_Right_Button) == 0){
-    front_touch_sensor += 20;
-  }
+void vlxReset()
+{
+  Serial.println("Resetting Sensor");
+ /* Stop the Sensor reading and even stop the i2c Transmission */
+  VL53L0X[0].stopContinuous();
+  VL53L0X[1].stopContinuous();
+  Wire.endTransmission();
+
+  digitalWrite(xshut_left, LOW);
+  digitalWrite(xshut_right, LOW);
   delay(1);
+
+  digitalWrite(xshut_left, HIGH);
+  delay(1);
+  VL53L0X[0].setTimeout(500);
+  if (!VL53L0X[0].init())
+  {
+    while (1){
+      Serial.println("Failed to detect and initialize vl_left!");
+      delay(1000);
+    }
+  }
+  VL53L0X[0].setAddress(vl_left_address);
+    // 射程を広げる
+  VL53L0X[0].setSignalRateLimit(0.1);
+  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  VL53L0X[0].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+
+  // 高速モード
+  VL53L0X[0].setMeasurementTimingBudget(20000);
+  VL53L0X[0].startContinuous(10);
+
+  digitalWrite(xshut_right, HIGH);
+  delay(1);
+  VL53L0X[1].setTimeout(500);
+  if (!VL53L0X[1].init())
+  {
+    while (1){
+      Serial.println("Failed to detect and initialize vl_left!");
+      delay(1000);
+    }
+  }
+
+  // 射程を広げる
+  VL53L0X[1].setSignalRateLimit(0.1);
+  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  VL53L0X[1].setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+
+  // 高速モード
+  VL53L0X[1].setMeasurementTimingBudget(20000);
+  VL53L0X[1].startContinuous(10);
 }
