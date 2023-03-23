@@ -52,10 +52,12 @@ volatile uint8_t central_line_sensor_AND_rescue_kit = 0;
 
 volatile bool should_turn_90 = false;
 volatile bool should_turn_180 = false;
+volatile bool should_turn_270 = false;
 volatile bool serialwrite = false;
 
 // 左が壁で1、右が壁で2、両方で3、何もなくて0
 volatile uint8_t isWall = 0;
+volatile char vl_distance_mm[4] = {0,0,0,0};
 
 // MultiThread
 TaskHandle_t thp[3]; //ToFを追加して3になる予定
@@ -143,7 +145,7 @@ void turn_for_designated_angle(int16_t degree){
 
   int16_t start_angle = event.orientation.x;
   int16_t target_angle_range_min = start_angle + degree - 17; // 目標角の範囲の最小値
-  int16_t target_angle_range_max = start_angle + degree - 7; // 目標角の範囲の最大値
+  int16_t target_angle_range_max = start_angle + degree + 17; // 目標角の範囲の最大値
 
   // 繰り上がりとかを考慮しつつ180度回転するのを待つ
   if (target_angle_range_max <360){
@@ -187,26 +189,30 @@ void turn_for_designated_angle(int16_t degree){
 }
 
 void BNO055(void *args) {
+  float previous_y = 0;
   while (1) {
     // 180度回転
     if (should_turn_180){
       turn_for_designated_angle(180);
       should_turn_180 = false;
     }
-    // 90度回転
+    // 90度回転(右回転)
     if (should_turn_90){
       turn_for_designated_angle(90);
       should_turn_90 = false;
     }
+    // 270度回転(左回転)
     // 通常業務
     sensors_event_t event;
     bno.getEvent(&event);
 
     float deg_for_hill = (float)event.orientation.y;
-    if (deg_for_hill > 5){
-      gyro_stats = 1;
+    if (deg_for_hill - previous_y < -10){
+      gyro_stats = 3;
     } else if (deg_for_hill < -5){
       gyro_stats = 2;
+    } else if (deg_for_hill > 5){
+      gyro_stats = 1;
     } else {
       gyro_stats = 0;
     }
@@ -240,6 +246,9 @@ void UART(void *args) {
     } else if (hoge == 90){
       should_turn_90 = true;
       Serial2.write(9);
+    } else if (hoge == 27){
+      should_turn_270 = true;
+      Serial2.write(27);
     } else {
       Serial.print(hoge);
       Serial.println(",not 10 was sent");
@@ -368,6 +377,11 @@ void loop() {
     } else {
       isWall = 0;
     }
+
+    vl_distance_mm[0] = highByte(vl_left_mm);
+    vl_distance_mm[1] = lowByte(vl_left_mm);
+    vl_distance_mm[2] = highByte(vl_right_mm);
+    vl_distance_mm[3] = lowByte(vl_right_mm);    
 }
 
 void vlxReset()
