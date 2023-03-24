@@ -54,10 +54,11 @@ volatile bool should_turn_90 = false;
 volatile bool should_turn_180 = false;
 volatile bool should_turn_270 = false;
 volatile bool serialwrite = false;
+volatile bool notify_seesaw = false;
 
 // 左が壁で1、右が壁で2、両方で3、何もなくて0
 volatile uint8_t isWall = 0;
-volatile char vl_distance_mm[4] = {0,0,0,0};
+volatile uint8_t vl_distance_mm[4] = {0,0,0,0};
 
 // MultiThread
 TaskHandle_t thp[3]; //ToFを追加して3になる予定
@@ -202,6 +203,10 @@ void BNO055(void *args) {
       should_turn_90 = false;
     }
     // 270度回転(左回転)
+    if (should_turn_270){
+      turn_for_designated_angle(270);
+      should_turn_270 = true;
+    }
     // 通常業務
     sensors_event_t event;
     bno.getEvent(&event);
@@ -209,6 +214,7 @@ void BNO055(void *args) {
     float deg_for_hill = (float)event.orientation.y;
     if (deg_for_hill - previous_y < -10){
       gyro_stats = 3;
+      notify_seesaw = true;
     } else if (deg_for_hill < -5){
       gyro_stats = 2;
     } else if (deg_for_hill > 5){
@@ -228,19 +234,28 @@ void UART(void *args) {
       delay(1);
     }
     int hoge = Serial2.read();
+    uint8_t tmp_gyro_stats = gyro_stats;
+    if (notify_seesaw){
+      tmp_gyro_stats = 3;
+      notify_seesaw = false;
+    }
     if (hoge == 10){
       char listforEV3_10[4] = {line_sensor_statues,
                             front_touch_sensor,
                             central_line_sensor_AND_rescue_kit,
-                            gyro_stats};
+                            tmp_gyro_stats};
       Serial2.write(listforEV3_10,4);
       Serial.println("received 10 and sent 4 Byte");
-    } else if (hoge == 11){
+    } else if (hoge == 11){ // 障害物
       char listforEV3_11[3] = {isWall,
                               front_touch_sensor,
                               line_sensor_statues};
       Serial2.write(listforEV3_11,3);
-    } else if (hoge == 180){
+    } else if (hoge == 12){ // レスキュー
+      byte listforEV3_12[5] = {vl_distance_mm[0],vl_distance_mm[1],vl_distance_mm[2],vl_distance_mm[3],
+                              front_touch_sensor};
+      Serial1.write(listforEV3_12,5);
+    } else if(hoge == 180){
       should_turn_180 = true;
       Serial2.write(18);
     } else if (hoge == 90){
@@ -251,7 +266,7 @@ void UART(void *args) {
       Serial2.write(27);
     } else {
       Serial.print(hoge);
-      Serial.println(",not 10 was sent");
+      Serial.println(",unknown code has been sent");
     }
   }
 }
