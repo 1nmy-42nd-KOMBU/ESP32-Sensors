@@ -9,8 +9,8 @@
 // VL53L0X[0]を左 VL53L0X[1]を右とする
 VL53L0X VL53L0X[2];
 
-const int xshut_left = 23;
-const int xshut_right = 5;
+const int xshut_left = 5;
+const int xshut_right = 23;
 
 byte vl_left_address = 0x10; // 左のVLのアドレスは0x10
 
@@ -19,7 +19,7 @@ byte vl_left_address = 0x10; // 左のVLのアドレスは0x10
 #define TXp2 18
 
 /* Set the delay between fresh samples */
-#define BNO055_SAMPLERATE_DELAY_MS (50)
+#define BNO055_SAMPLERATE_DELAY_MS (20)
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28, &Wire1);
@@ -50,9 +50,8 @@ volatile uint8_t line_sensor_statues = 0;
 // 何もなければ0 中心のラインセンサが白で1 レスキューキットで2 両方で3
 volatile uint8_t central_line_sensor_AND_rescue_kit = 0;
 
-volatile bool should_turn_90 = false;
+volatile uint8_t gyro_x = 0;
 volatile bool should_turn_180 = false;
-volatile bool should_turn_270 = false;
 volatile bool serialwrite = false;
 volatile bool notify_seesaw = false;
 
@@ -76,11 +75,11 @@ void line_sensors(void *args){
   // 左右のラインセンサ
     int left_light = analogRead(Left_Light_Sensor);
     int right_light = analogRead(Right_Light_Sensor);
-    if (left_light <= 500 && right_light <= 500){
+    if (left_light <= 1000 && right_light <= 1000){
       line_sensor_statues = 3;
-    } else if (left_light <= 500){
+    } else if (left_light <= 1000){
       line_sensor_statues = 1;
-    } else if (right_light <= 500){
+    } else if (right_light <= 1000){
       line_sensor_statues = 2;
     } else {
       line_sensor_statues = 0;
@@ -88,23 +87,24 @@ void line_sensors(void *args){
     // アームのラインセンサ
     int central_light = analogRead(Central_Light_Sensor);
     int rescue_kit = analogRead(RescueKit_Sensor);
-    if (central_light >= 350 && rescue_kit >= 1000){
+    if (central_light >= 380 && rescue_kit >= 3000){
       central_line_sensor_AND_rescue_kit = 3;
-    } else if (central_light >= 350){
+    } else if (central_light >= 380){
       central_line_sensor_AND_rescue_kit = 1;
-    } else if (rescue_kit >= 1000){
+    } else if (rescue_kit >= 3000){
       central_line_sensor_AND_rescue_kit = 2;
     } else {
       central_line_sensor_AND_rescue_kit = 0;
     }
     // Serial.print("12central; ");
     // Serial.println(analogRead(Central_Light_Sensor)); // 350より高いと白
+    // delay(500);
     // Serial.print(", 14right; ");
     // Serial.print(analogRead(Right_Light_Sensor)); // 500切ったら黒
     // Serial.print(", 27left; ");
     // Serial.print(analogRead(Left_Light_Sensor));
-    // Serial.print(", 26kit; ");
-    // Serial.println(analogRead(RescueKit_Sensor)); // 1000超えたらレスキューキット
+    Serial.print(", 26kit; ");
+    Serial.println(analogRead(RescueKit_Sensor)); // 1000超えたらレスキューキット
 
     // Serial.print("Left;");
     // Serial.print(digitalRead(Left_Button));
@@ -145,9 +145,11 @@ void turn_for_designated_angle(int16_t degree){
   bno.getEvent(&event);
 
   int16_t start_angle = event.orientation.x;
-  int16_t target_angle_range_min = start_angle + degree - 17; // 目標角の範囲の最小値
-  int16_t target_angle_range_max = start_angle + degree + 17; // 目標角の範囲の最大値
-
+  int16_t target_angle_range_min = start_angle + degree - 5; // 目標角の範囲の最小値
+  int16_t target_angle_range_max = start_angle + degree + 5; // 目標角の範囲の最大値
+  Serial.println(start_angle);
+  Serial.println(target_angle_range_min);
+  Serial.println(target_angle_range_max);
   // 繰り上がりとかを考慮しつつ180度回転するのを待つ
   if (target_angle_range_max <360){
      // そのままでOK
@@ -197,31 +199,22 @@ void BNO055(void *args) {
       turn_for_designated_angle(180);
       should_turn_180 = false;
     }
-    // 90度回転(右回転)
-    if (should_turn_90){
-      turn_for_designated_angle(90);
-      should_turn_90 = false;
-    }
-    // 270度回転(左回転)
-    if (should_turn_270){
-      turn_for_designated_angle(270);
-      should_turn_270 = true;
-    }
     // 通常業務
     sensors_event_t event;
     bno.getEvent(&event);
 
     float deg_for_hill = (float)event.orientation.y;
-    if (deg_for_hill - previous_y < -10){
+    if (deg_for_hill - previous_y < -3){
       gyro_stats = 3;
       notify_seesaw = true;
-    } else if (deg_for_hill < -5){
+    } else if (deg_for_hill < -3){
       gyro_stats = 2;
-    } else if (deg_for_hill > 5){
+    } else if (deg_for_hill > 3){
       gyro_stats = 1;
     } else {
       gyro_stats = 0;
     }
+    gyro_x = (uint8_t)(event.orientation.x / 2);
 
     delay(BNO055_SAMPLERATE_DELAY_MS);
   }
@@ -247,23 +240,19 @@ void UART(void *args) {
       Serial2.write(listforEV3_10,4);
       Serial.println("received 10 and sent 4 Byte");
     } else if (hoge == 11){ // 障害物
-      char listforEV3_11[3] = {isWall,
+      char listforEV3_11[7] = {vl_distance_mm[0],vl_distance_mm[1],vl_distance_mm[2],vl_distance_mm[3],
                               front_touch_sensor,
-                              line_sensor_statues};
-      Serial2.write(listforEV3_11,3);
+                              line_sensor_statues,
+                              gyro_x};
+      Serial2.write(listforEV3_11,7);
     } else if (hoge == 12){ // レスキュー
-      byte listforEV3_12[5] = {vl_distance_mm[0],vl_distance_mm[1],vl_distance_mm[2],vl_distance_mm[3],
-                              front_touch_sensor};
-      Serial1.write(listforEV3_12,5);
+      char listforEV3_12[6] = {vl_distance_mm[0],vl_distance_mm[1],vl_distance_mm[2],vl_distance_mm[3],
+                              front_touch_sensor,gyro_x};
+      Serial2.write(listforEV3_12,6);
+      Serial.println("send 6 byte");
     } else if(hoge == 180){
       should_turn_180 = true;
       Serial2.write(18);
-    } else if (hoge == 90){
-      should_turn_90 = true;
-      Serial2.write(9);
-    } else if (hoge == 27){
-      should_turn_270 = true;
-      Serial2.write(27);
     } else {
       Serial.print(hoge);
       Serial.println(",unknown code has been sent");
@@ -373,21 +362,21 @@ void setup()
 
 void loop() {
     uint16_t vl_left_mm = VL53L0X[0].readRangeSingleMillimeters();
-    // Serial.print("left; ");
-    // Serial.print(vl_left_mm);
     if (VL53L0X[0].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
     uint16_t vl_right_mm = VL53L0X[1].readRangeSingleMillimeters();
+    if (VL53L0X[1].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+    // Serial.print("left; ");
+    // Serial.print(vl_left_mm);
     // Serial.print(", right; ");
     // Serial.print(vl_right_mm);
-    if (VL53L0X[1].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
     // Serial.println();
 
     // 横に壁があるかを判定
-    if (vl_left_mm >= 200 && vl_right_mm >= 200){
+    if (vl_left_mm <= 200 && vl_right_mm <= 200){
       isWall = 3;
-    } else if (vl_left_mm >= 200){
+    } else if (vl_left_mm <= 200){
       isWall = 1;
-    } else if (vl_right_mm >= 200){
+    } else if (vl_right_mm <= 200){
       isWall = 2;
     } else {
       isWall = 0;

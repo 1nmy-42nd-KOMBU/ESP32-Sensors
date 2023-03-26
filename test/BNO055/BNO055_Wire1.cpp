@@ -23,13 +23,21 @@ void Core0a(void *args) {//サブCPU(Core0)で実行するプログラム
     // float target_angle = start_angle + 180;
 
     /* The processing sketch expects data as roll, pitch, heading */
-    Serial.print(F("Orientation: "));
-    Serial.print((float)event.orientation.x);
-    Serial.print(F(" "));
-    Serial.print((float)event.orientation.y);
-    Serial.print(F(" "));
-    Serial.print((float)event.orientation.z);
-    Serial.println(F(""));
+    // Serial.print(F("Orientation: "));
+    // Serial.print((float)event.orientation.x);
+    // Serial.print(F(" "));
+    // Serial.print((float)event.orientation.y);
+    // Serial.print(F(" "));
+    // Serial.print((float)event.orientation.z);
+    // Serial.println(F(""));
+
+    imu::Vector<3> accelermetor = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+    Serial.print("  Ac_xyz:");
+    Serial.print(accelermetor.x());
+    Serial.print(", ");
+    Serial.print(accelermetor.y());
+    Serial.print(", ");
+    Serial.print(accelermetor.z());
 
     // /* Also send calibration data for each sensor. */
     // uint8_t sys, gyro, accel, mag = 0;
