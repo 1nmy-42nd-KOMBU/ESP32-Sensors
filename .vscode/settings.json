@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "array": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp"
+    }
+    "indentRainbow.colors": [
+        "rgba(128, 64, 64, 0.5)", // 1インデント目の色
+        "rgba(128, 96, 32, 0.5)", // 2インデント目の色
+        "rgba(128, 128, 32, 0.5)", // 3インデント目の色
+        "rgba( 32, 128, 32, 0.5)", // 4インデント目の色
+        "rgba( 32, 64, 128, 0.5)", // 5インデント目の色
+        "rgba(128, 64, 128, 0.5)" // 6インデント目の色
+       ],
+}
