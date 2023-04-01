@@ -214,6 +214,12 @@ void BNO055(void *args) {
     } else {
       gyro_stats = 0;
     }
+    float z_hill = (float)event.orientation.z;
+    if (z_hill >= 3){
+      gyro_stats += 10;
+    } else if (z_hill <= -3){
+      gyro_stats += 20;
+    }
     gyro_x = (uint8_t)(event.orientation.x / 2);
 
     delay(BNO055_SAMPLERATE_DELAY_MS);
