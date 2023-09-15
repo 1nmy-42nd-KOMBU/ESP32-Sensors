@@ -275,11 +275,7 @@ void setup()
   Serial2.begin(115200, SERIAL_8N1, RXp2, TXp2);
   while(!Serial2); //wait untill it opens
   Wire.begin();
-
-  // MultiThread ------------------------------------------------------------
-  xTaskCreatePinnedToCore(UART, "UART", 4096, NULL, 3, &thp[0], 0); 
-  xTaskCreatePinnedToCore(BNO055, "BNO055", 4096, NULL, 5, &thp[1], 0);
-  xTaskCreatePinnedToCore(line_sensors,"line_sensors",4096,NULL,2,&thp[2],0);
+  
   // BNO055 ------------------------------------------------------------
   Wire1.begin(Wire1_SDA, Wire1_SCL);
   /* Initialise the sensor */
@@ -359,6 +355,11 @@ void setup()
 
   // start
   VL53L0X[1].startContinuous(10);
+  
+  // MultiThread ------------------------------------------------------------
+  xTaskCreatePinnedToCore(UART, "UART", 4096, NULL, 3, &thp[0], 0); 
+  xTaskCreatePinnedToCore(BNO055, "BNO055", 4096, NULL, 5, &thp[1], 0);
+  xTaskCreatePinnedToCore(line_sensors,"line_sensors",4096,NULL,2,&thp[2],0);
   
   // ------------------------------------------------------------
   Serial.println("start");
