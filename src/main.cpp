@@ -361,9 +361,9 @@ void setup()
 // ================================================================================
 
 void loop() {
-    uint16_t vl_left_mm = VL53L0X[0].readRangeSingleMillimeters();
+    uint16_t vl_left_mm = VL53L0X[0].readRangeContinuousMillimeters();
     if (VL53L0X[0].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
-    uint16_t vl_right_mm = VL53L0X[1].readRangeSingleMillimeters();
+    uint16_t vl_right_mm = VL53L0X[1].readRangeContinuousMillimeters();
     if (VL53L0X[1].timeoutOccurred()) { Serial.print(" TIMEOUT"); }
     // Serial.print("left; ");
     // Serial.print(vl_left_mm);
